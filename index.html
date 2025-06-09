@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>员工出差轨迹统计</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; }
+    #sidebar { width: 240px; border-right: 1px solid #ccc; padding: 10px; box-sizing: border-box; }
+    #map { flex: 1; position: relative; }
+    #mapContainer { width:100%;height:70%; }
+    #recordList { height:30%; overflow-y:auto; border-top:1px solid #ccc; padding:5px; }
+    button, input, select { margin:5px; padding:5px; }
+    li { margin:5px 0; }
+    .active { font-weight: bold; color: blue; }
+  </style>
+</head>
+<body>
+
+<div id="sidebar">
+  <h3>👥 人员管理</h3>
+  <input type="text" id="newEmp" placeholder="新员工姓名"/><button onclick="addEmployee()">添加</button>
+  <ul id="empList"></ul>
+  <hr>
+  <button onclick="showForm()">添加出差记录</button>
+  <button onclick="exportCSV()">导出CSV</button>
+  <div id="form" style="display:none;">
+    <h4>出差记录</h4>
+    姓名：<span id="formEmp"></span><br>
+    状态：<select id="statusSelect"><option>出差中</option><option>驻地</option><option>请假</option></select><input id="newSt" placeholder="新增状态回车"/><br>
+    起始：<input type="datetime-local" id="start"/><br>
+    结束：<input type="datetime-local" id="end"/><br>
+    经度：<input id="lng" readonly> 纬度：<input id="lat" readonly><br>
+    <small>点击地图选择位置</small><br>
+    <button onclick="saveRecord()">保存</button><button onclick="hideForm()">取消</button>
+  </div>
+</div>
+
+<div id="map">
+  <div id="mapContainer"></div>
+  <div id="recordList"></div>
+</div>
+
+<script src="https://webapi.amap.com/maps?v=2.0&key=ce4f1cf51cbf10635e015fd1ff71f40a"></script>
+<script>
+  let employees = JSON.parse(localStorage.getItem('employees')||'[]');
+  let records = JSON.parse(localStorage.getItem('records')||'[]');
+  let selected = null;
+  let map = new AMap.Map('mapContainer',{zoom:5,center:[116.397428,39.90923]});
+  let marker = null;
+  let footsteps = [];
+
+  function saveData() {
+    localStorage.setItem('employees',JSON.stringify(employees));
+    localStorage.setItem('records',JSON.stringify(records));
+  }
+
+  function renderEmpList() {
+    const ul = document.getElementById('empList');
+    ul.innerHTML = '';
+    employees.forEach((e,i)=>{
+      const li = document.createElement('li');
+      li.innerHTML = `<span onclick="selectEmp(${i})" class="${selected===i?'active':''}">${e}</span> 
+        <button onclick="delEmp(${i})">删</button>`;
+      ul.appendChild(li);
+    });
+  }
+
+  function addEmployee(){
+    const nm = document.getElementById('newEmp').value.trim();
+    if(nm && !employees.includes(nm)){ employees.push(nm); saveData(); renderEmpList(); }
+    document.getElementById('newEmp').value='';
+  }
+
+  function delEmp(i){
+    if(confirm('删除员工及其记录？')) {
+      employees.splice(i,1);
+      records = records.filter(r=>r.emp!==employees[i]);
+      if(selected===i) selected=null;
+      saveData(); renderEmpList(); renderMap(); renderList();
+    }
+  }
+
+  function selectEmp(i){
+    selected=i;
+    renderEmpList();
+    renderMap();
+    renderList();
+  }
+
+  function showForm(){
+    if(selected===null) return alert('请先选择员工');
+    document.getElementById('form').style.display='block';
+    document.getElementById('formEmp').innerText=employees[selected];
+    document.getElementById('lng').value='';
+    document.getElementById('lat').value='';
+  }
+
+  function hideForm(){
+    document.getElementById('form').style.display='none';
+  }
+
+  document.getElementById('newSt').addEventListener('keydown',e=>{
+    if(e.key==='Enter'){
+      const val=e.target.value.trim();
+      if(val){
+        const sel=document.getElementById('statusSelect');
+        sel.add(new Option(val,val));
+        sel.value=val;
+        e.target.value='';
+      }
+    }
+  });
+
+  map.on('click',e=>{
+    if(!document.getElementById('form').style.display==='block')return;
+    const lng=e.lnglat.getLng().toFixed(6), lat=e.lnglat.getLat().toFixed(6);
+    document.getElementById('lng').value=lng;
+    document.getElementById('lat').value=lat;
+  });
+
+  function saveRecord(){
+    const emp=employees[selected], status=document.getElementById('statusSelect').value;
+    const st=document.getElementById('start').value, en=document.getElementById('end').value;
+    const lng=document.getElementById('lng').value, lat=document.getElementById('lat').value;
+    if(!st||!en||!lng||!lat) return alert('请填写完整');
+    records.push({emp,status,st,en,lng,lat});
+    saveData(); hideForm(); renderMap(); renderList();
+  }
+
+  function renderMap(){
+    map.clearMap(); footsteps=[]; if(selected===null)return;
+    const user=employees[selected];
+    const userRec = records.filter(r=>r.emp===user);
+    if(userRec.length){
+      const last=userRec[userRec.length-1];
+      marker=new AMap.Marker({
+        position:[last.lng,last.lat],
+        icon: new AMap.Icon({
+          image: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
+          size:new AMap.Size(32,32),
+        })
+      });
+      map.setCenter([last.lng,last.lat]);
+      map.add(marker);
+      const recent=userRec.slice(-5).map(r=>`${r.st}→${r.en} @${r.lng},${r.lat}`).join('<br>');
+      document.getElementById('recordList').innerHTML=recent;
+    } else {
+      document.getElementById('recordList').innerText='无出差记录';
+    }
+  }
+
+  function renderList(){
+    // handled via renderMap
+  }
+
+  function exportCSV(){
+    if(records.length===0)return alert('无记录');
+    const header=['姓名','状态','起始','结束','经度','纬度'];
+    const csv=[header.join(',')];
+    records.forEach(r=>csv.push([r.emp,r.status,r.st,r.en,r.lng,r.lat].join(',')));
+    const blob=new Blob([csv.join('\n')],{type:'text/csv'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='记录.csv';
+    a.click();
+  }
+
+  renderEmpList();
+  renderMap();
+
+</script>
+</body>
+</html>
