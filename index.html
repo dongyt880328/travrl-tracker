@@ -1,173 +1,180 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>员工出差轨迹统计</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; display: flex; height: 100vh; }
-    #sidebar { width: 240px; border-right: 1px solid #ccc; padding: 10px; box-sizing: border-box; }
-    #map { flex: 1; position: relative; }
-    #mapContainer { width:100%;height:70%; }
-    #recordList { height:30%; overflow-y:auto; border-top:1px solid #ccc; padding:5px; }
-    button, input, select { margin:5px; padding:5px; }
-    li { margin:5px 0; }
-    .active { font-weight: bold; color: blue; }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      display: flex;
+      height: 100vh;
+    }
+    #sidebar {
+      width: 200px;
+      background-color: #f0f0f0;
+      padding: 10px;
+      overflow-y: auto;
+      border-right: 1px solid #ccc;
+    }
+    #main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #map {
+      flex: 2;
+      height: 70%;
+    }
+    #record-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      background-color: #fafafa;
+      border-top: 1px solid #ccc;
+    }
+    .employee {
+      cursor: pointer;
+      padding: 5px;
+      border-bottom: 1px solid #ccc;
+    }
+    .employee:hover {
+      background-color: #ddd;
+    }
+    label {
+      display: inline-block;
+      margin: 5px 0 2px;
+    }
+    input, select, button {
+      margin-bottom: 10px;
+      width: 100%;
+    }
   </style>
+  <script src="https://webapi.amap.com/maps?v=2.0&key=8f0e0846cf92cd5aa5b88febf87d0834&plugin=AMap.Geocoder"></script>
 </head>
 <body>
-
-<div id="sidebar">
-  <h3>👥 人员管理</h3>
-  <input type="text" id="newEmp" placeholder="新员工姓名"/><button onclick="addEmployee()">添加</button>
-  <ul id="empList"></ul>
-  <hr>
-  <button onclick="showForm()">添加出差记录</button>
-  <button onclick="exportCSV()">导出CSV</button>
-  <div id="form" style="display:none;">
-    <h4>出差记录</h4>
-    姓名：<span id="formEmp"></span><br>
-    状态：<select id="statusSelect"><option>出差中</option><option>驻地</option><option>请假</option></select><input id="newSt" placeholder="新增状态回车"/><br>
-    起始：<input type="datetime-local" id="start"/><br>
-    结束：<input type="datetime-local" id="end"/><br>
-    经度：<input id="lng" readonly> 纬度：<input id="lat" readonly><br>
-    <small>点击地图选择位置</small><br>
-    <button onclick="saveRecord()">保存</button><button onclick="hideForm()">取消</button>
+  <div id="sidebar">
+    <h3>员工列表</h3>
+    <div id="employee-list"></div>
+    <hr />
+    <h4>添加员工</h4>
+    <input type="text" id="newName" placeholder="姓名" />
+    <button onclick="addEmployee()">添加</button>
   </div>
-</div>
+  <div id="main">
+    <div id="map"></div>
+    <div id="record-panel">
+      <h3 id="selected-employee-title">出差记录</h3>
+      <div id="records"></div>
+      <h4>添加出差记录</h4>
+      <label>开始日期</label>
+      <input type="date" id="startDate" />
+      <label>结束日期（可选）</label>
+      <input type="date" id="endDate" />
+      <label>状态</label>
+      <select id="status">
+        <option>出差中</option>
+        <option>驻地</option>
+        <option>请假</option>
+      </select>
+      <label>地点</label>
+      <input type="text" id="location" placeholder="点击地图选择地点" readonly />
+      <button onclick="addRecord()">添加记录</button>
+    </div>
+  </div>
 
-<div id="map">
-  <div id="mapContainer"></div>
-  <div id="recordList"></div>
-</div>
+  <script>
+    let map, geocoder, currentMarker;
+    const employees = [];
+    const records = {};
 
-<script src="https://webapi.amap.com/maps?v=2.0&key=8f0e0846cf92cd5aa5b88febf87d0834"></script>
-<script>
-  let employees = JSON.parse(localStorage.getItem('employees')||'[]');
-  let records = JSON.parse(localStorage.getItem('records')||'[]');
-  let selected = null;
-  let map = new AMap.Map('mapContainer',{zoom:5,center:[116.397428,39.90923]});
-  let marker = null;
-  let footsteps = [];
-
-  function saveData() {
-    localStorage.setItem('employees',JSON.stringify(employees));
-    localStorage.setItem('records',JSON.stringify(records));
-  }
-
-  function renderEmpList() {
-    const ul = document.getElementById('empList');
-    ul.innerHTML = '';
-    employees.forEach((e,i)=>{
-      const li = document.createElement('li');
-      li.innerHTML = `<span onclick="selectEmp(${i})" class="${selected===i?'active':''}">${e}</span> 
-        <button onclick="delEmp(${i})">删</button>`;
-      ul.appendChild(li);
-    });
-  }
-
-  function addEmployee(){
-    const nm = document.getElementById('newEmp').value.trim();
-    if(nm && !employees.includes(nm)){ employees.push(nm); saveData(); renderEmpList(); }
-    document.getElementById('newEmp').value='';
-  }
-
-  function delEmp(i){
-    if(confirm('删除员工及其记录？')) {
-      employees.splice(i,1);
-      records = records.filter(r=>r.emp!==employees[i]);
-      if(selected===i) selected=null;
-      saveData(); renderEmpList(); renderMap(); renderList();
+    function initMap() {
+      map = new AMap.Map("map", {
+        zoom: 5,
+        center: [116.397428, 39.90923]
+      });
+      geocoder = new AMap.Geocoder();
+      map.on("click", function(e) {
+        geocoder.getAddress([e.lnglat.lng, e.lnglat.lat], function(status, result) {
+          if (status === "complete" && result.regeocode) {
+            document.getElementById("location").value = result.regeocode.formattedAddress;
+          }
+        });
+      });
     }
-  }
 
-  function selectEmp(i){
-    selected=i;
-    renderEmpList();
-    renderMap();
-    renderList();
-  }
+    function addEmployee() {
+      const name = document.getElementById("newName").value.trim();
+      if (!name || employees.includes(name)) return;
+      employees.push(name);
+      records[name] = [];
+      updateEmployeeList();
+      document.getElementById("newName").value = "";
+    }
 
-  function showForm(){
-    if(selected===null) return alert('请先选择员工');
-    document.getElementById('form').style.display='block';
-    document.getElementById('formEmp').innerText=employees[selected];
-    document.getElementById('lng').value='';
-    document.getElementById('lat').value='';
-  }
+    function updateEmployeeList() {
+      const list = document.getElementById("employee-list");
+      list.innerHTML = "";
+      employees.forEach(name => {
+        const div = document.createElement("div");
+        div.className = "employee";
+        div.textContent = name;
+        div.onclick = () => selectEmployee(name);
+        list.appendChild(div);
+      });
+    }
 
-  function hideForm(){
-    document.getElementById('form').style.display='none';
-  }
-
-  document.getElementById('newSt').addEventListener('keydown',e=>{
-    if(e.key==='Enter'){
-      const val=e.target.value.trim();
-      if(val){
-        const sel=document.getElementById('statusSelect');
-        sel.add(new Option(val,val));
-        sel.value=val;
-        e.target.value='';
+    let selectedEmployee = null;
+    function selectEmployee(name) {
+      selectedEmployee = name;
+      document.getElementById("selected-employee-title").textContent = `【${name}】的出差记录`;
+      updateRecords();
+      if (currentMarker) map.remove(currentMarker);
+      const current = records[name].find(r => !r.end);
+      if (current) {
+        geocoder.getLocation(current.location, (status, result) => {
+          if (status === "complete" && result.geocodes.length) {
+            const pos = result.geocodes[0].location;
+            currentMarker = new AMap.Marker({
+              map: map,
+              position: pos,
+              icon: new AMap.Icon({
+                image: "https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png",
+                size: new AMap.Size(40, 40)
+              })
+            });
+            map.setCenter(pos);
+            map.setZoom(10);
+          }
+        });
       }
     }
-  });
 
-  map.on('click',e=>{
-    if(!document.getElementById('form').style.display==='block')return;
-    const lng=e.lnglat.getLng().toFixed(6), lat=e.lnglat.getLat().toFixed(6);
-    document.getElementById('lng').value=lng;
-    document.getElementById('lat').value=lat;
-  });
-
-  function saveRecord(){
-    const emp=employees[selected], status=document.getElementById('statusSelect').value;
-    const st=document.getElementById('start').value, en=document.getElementById('end').value;
-    const lng=document.getElementById('lng').value, lat=document.getElementById('lat').value;
-    if(!st||!en||!lng||!lat) return alert('请填写完整');
-    records.push({emp,status,st,en,lng,lat});
-    saveData(); hideForm(); renderMap(); renderList();
-  }
-
-  function renderMap(){
-    map.clearMap(); footsteps=[]; if(selected===null)return;
-    const user=employees[selected];
-    const userRec = records.filter(r=>r.emp===user);
-    if(userRec.length){
-      const last=userRec[userRec.length-1];
-      marker=new AMap.Marker({
-        position:[last.lng,last.lat],
-        icon: new AMap.Icon({
-          image: 'https://cdn-icons-png.flaticon.com/512/149/149071.png',
-          size:new AMap.Size(32,32),
-        })
+    function updateRecords() {
+      const box = document.getElementById("records");
+      box.innerHTML = "";
+      if (!selectedEmployee) return;
+      const recs = records[selectedEmployee] || [];
+      recs.forEach((r, i) => {
+        const div = document.createElement("div");
+        div.textContent = `${r.start} ~ ${r.end || "现在"} - ${r.location}（${r.status}）`;
+        box.appendChild(div);
       });
-      map.setCenter([last.lng,last.lat]);
-      map.add(marker);
-      const recent=userRec.slice(-5).map(r=>`${r.st}→${r.en} @${r.lng},${r.lat}`).join('<br>');
-      document.getElementById('recordList').innerHTML=recent;
-    } else {
-      document.getElementById('recordList').innerText='无出差记录';
     }
-  }
 
-  function renderList(){
-    // handled via renderMap
-  }
+    function addRecord() {
+      if (!selectedEmployee) return alert("请先选择员工");
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      const status = document.getElementById("status").value;
+      const location = document.getElementById("location").value;
+      if (!start || !location) return alert("请填写完整");
+      records[selectedEmployee].push({ start, end, status, location });
+      updateRecords();
+    }
 
-  function exportCSV(){
-    if(records.length===0)return alert('无记录');
-    const header=['姓名','状态','起始','结束','经度','纬度'];
-    const csv=[header.join(',')];
-    records.forEach(r=>csv.push([r.emp,r.status,r.st,r.en,r.lng,r.lat].join(',')));
-    const blob=new Blob([csv.join('\n')],{type:'text/csv'});
-    const a=document.createElement('a');
-    a.href=URL.createObjectURL(blob);
-    a.download='记录.csv';
-    a.click();
-  }
-
-  renderEmpList();
-  renderMap();
-
-</script>
+    window.onload = initMap;
+  </script>
 </body>
 </html>
