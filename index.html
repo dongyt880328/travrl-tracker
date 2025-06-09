@@ -3,20 +3,28 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>员工出差轨迹统计</title>
+  <title>员工出差轨迹统计系统</title>
   <style>
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
       display: flex;
       height: 100vh;
+      background-color: #f5f7fa;
+      color: #333;
     }
     #sidebar {
-      width: 260px;
-      background-color: #f0f0f0;
-      padding: 10px;
+      width: 280px;
+      background: linear-gradient(135deg, #2c3e50, #4a6491);
+      color: white;
+      padding: 15px;
       overflow-y: auto;
-      border-right: 1px solid #ccc;
+      box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+      display: flex;
+      flex-direction: column;
     }
     #main {
       flex: 1;
@@ -24,79 +32,256 @@
       flex-direction: column;
     }
     #map {
-      height: 70%;
+      height: 65%;
+      border-bottom: 1px solid #ddd;
     }
     #record-panel {
       flex: 1;
       overflow-y: auto;
-      padding: 10px;
-      background-color: #fafafa;
-      border-top: 1px solid #ccc;
+      padding: 15px;
+      background-color: white;
     }
     .employee {
       cursor: pointer;
-      padding: 5px;
-      border-bottom: 1px solid #ccc;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      background-color: rgba(255,255,255,0.1);
+      transition: all 0.3s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
     .employee:hover {
-      background-color: #ddd;
+      background-color: rgba(255,255,255,0.2);
+    }
+    .employee.active {
+      background-color: #3498db;
+      font-weight: bold;
     }
     label {
-      display: inline-block;
-      margin: 5px 0 2px;
+      display: block;
+      margin: 12px 0 5px;
+      font-weight: bold;
+      color: #ecf0f1;
     }
     input, select, button {
-      margin-bottom: 10px;
+      margin-bottom: 12px;
       width: 100%;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #34495e;
+      background-color: rgba(255,255,255,0.9);
+    }
+    button {
+      background: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background: #2980b9;
+    }
+    button.secondary {
+      background: #95a5a6;
+    }
+    button.secondary:hover {
+      background: #7f8c8d;
+    }
+    h3 {
+      margin-top: 0;
+      padding-bottom: 10px;
+      border-bottom: 2px solid rgba(255,255,255,0.2);
+    }
+    .section-title {
+      margin: 20px 0 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255,255,255,0.2);
+    }
+    #records {
+      margin-top: 15px;
+    }
+    .record-item {
+      padding: 12px;
+      background-color: #f8f9fa;
+      border-left: 4px solid #3498db;
+      margin-bottom: 10px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .record-details {
+      flex: 1;
+    }
+    .record-actions button {
+      width: auto;
+      margin-left: 8px;
+      padding: 6px 12px;
+    }
+    .record-item.current {
+      border-left-color: #e74c3c;
+      background-color: #fff5f5;
+    }
+    .record-item.leave {
+      border-left-color: #2ecc71;
+      background-color: #f5fffa;
+    }
+    #selected-employee-title {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    #export-import {
+      margin-top: auto;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.2);
+    }
+    .tools {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .tools button {
+      flex: 1;
+    }
+    .action-buttons {
+      display: flex;
+      gap: 10px;
+      margin: 15px 0;
+    }
+    .action-buttons button {
+      margin-bottom: 0;
+    }
+    .map-controls {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .map-controls button {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      padding: 0;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    }
+    .employee-count {
+      background: #e74c3c;
+      color: white;
+      border-radius: 50%;
+      width: 24px;
+      height: 24px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      margin-left: 5px;
+    }
+    .status-indicator {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      margin-right: 8px;
+    }
+    .status-business {
+      background-color: #e74c3c;
+    }
+    .status-base {
+      background-color: #3498db;
+    }
+    .status-leave {
+      background-color: #2ecc71;
     }
   </style>
-  <script src="https://webapi.amap.com/maps?v=2.0&key=8f0e0846cf92cd5aa5b88febf87d0834&plugin=AMap.Geocoder"></script>
+  <script src="https://webapi.amap.com/maps?v=2.0&key=8f0e0846cf92cd5aa5b88febf87d0834&plugin=AMap.Geocoder,AMap.Polyline"></script>
 </head>
 <body>
   <div id="sidebar">
-    <h3>员工列表</h3>
+    <h3>
+      <i class="icon">👥</i> 员工管理
+      <span class="employee-count" id="employee-count">0</span>
+    </h3>
     <div id="employee-list"></div>
 
-    <h4>添加员工</h4>
-    <input type="text" id="newName" placeholder="姓名" />
-    <button onclick="addEmployee()">添加</button>
+    <div class="section-title">添加新员工</div>
+    <input type="text" id="newName" placeholder="输入员工姓名" />
+    <button onclick="addEmployee()">添加员工</button>
 
-    <hr />
-    <h4>添加出差记录</h4>
+    <div class="section-title">添加出差记录</div>
     <label>开始日期</label>
     <input type="date" id="startDate" />
     <label>结束日期（可选）</label>
     <input type="date" id="endDate" />
     <label>状态</label>
-    <select id="status">
-      <option>出差中</option>
-      <option>驻地</option>
-      <option>请假</option>
-    </select>
+    <input type="text" id="status" placeholder="如：出差中、驻地、请假等" />
     <label>地点</label>
     <input type="text" id="location" placeholder="点击地图选择地点" readonly />
-    <button onclick="addRecord()">添加记录</button>
+    <div class="action-buttons">
+      <button onclick="addRecord()">添加记录</button>
+      <button onclick="clearForm()" class="secondary">清空</button>
+    </div>
+
+    <div id="export-import">
+      <div class="section-title">数据管理</div>
+      <div class="tools">
+        <button onclick="exportCSV()">导出CSV</button>
+        <button onclick="document.getElementById('jsonFile').click()">导入JSON</button>
+      </div>
+      <input type="file" id="jsonFile" accept=".json" style="display:none" onchange="importJSON(event)" />
+    </div>
   </div>
 
   <div id="main">
     <div id="map"></div>
     <div id="record-panel">
-      <h3 id="selected-employee-title">出差记录</h3>
+      <div id="selected-employee-title">
+        <h3>出差记录</h3>
+        <button onclick="toggleHistoryTrack()" id="track-toggle">显示历史轨迹</button>
+      </div>
       <div id="records"></div>
     </div>
   </div>
 
+  <div class="map-controls">
+    <button onclick="map.zoomIn()">+</button>
+    <button onclick="map.zoomOut()">-</button>
+    <button onclick="resetMapView()">↺</button>
+  </div>
+
   <script>
-    let map, geocoder, currentMarker;
+    // 全局变量
+    let map, geocoder;
     const employees = [];
     const records = {};
+    let selectedEmployee = null;
+    let currentMarker = null;
+    let historyPolyline = null;
+    let showHistoryTrack = false;
+    const markers = [];
 
+    // 初始化地图
     function initMap() {
       map = new AMap.Map("map", {
         zoom: 5,
-        center: [116.397428, 39.90923]
+        center: [104.06, 35.86],
+        viewMode: "3D"
       });
+      
       geocoder = new AMap.Geocoder();
+      
+      // 添加地图点击事件
       map.on("click", function(e) {
         geocoder.getAddress([e.lnglat.lng, e.lnglat.lat], function(status, result) {
           if (status === "complete" && result.regeocode) {
@@ -104,78 +289,406 @@
           }
         });
       });
+      
+      // 添加缩放控件
+      map.addControl(new AMap.Zoom());
+      
+      // 添加一些示例数据
+      addExampleData();
+      
+      // 标记所有出差中的员工
+      markCurrentBusinessEmployees();
     }
 
+    // 添加示例数据
+    function addExampleData() {
+      const names = ['张三', '李四', '王五', '赵六'];
+      const locations = ['北京市朝阳区', '上海市浦东新区', '广州市天河区', '深圳市南山区'];
+      const statuses = ['出差中', '驻地', '请假', '出差中'];
+      
+      names.forEach((name, index) => {
+        if (!employees.includes(name)) {
+          employees.push(name);
+          records[name] = [];
+          
+          const today = new Date();
+          const startDate = new Date(today);
+          startDate.setDate(today.getDate() - Math.floor(Math.random() * 10));
+          
+          records[name].push({
+            start: formatDate(startDate),
+            end: statuses[index] === '出差中' ? '' : formatDate(new Date(startDate.getTime() + 86400000 * (Math.floor(Math.random() * 5) + 1)),
+            status: statuses[index],
+            location: locations[index]
+          });
+        }
+      });
+      
+      updateEmployeeList();
+    }
+
+    // 日期格式化
+    function formatDate(date) {
+      if (!date) return '';
+      const d = new Date(date);
+      let month = '' + (d.getMonth() + 1);
+      let day = '' + d.getDate();
+      const year = d.getFullYear();
+      
+      if (month.length < 2) month = '0' + month;
+      if (day.length < 2) day = '0' + day;
+      
+      return [year, month, day].join('-');
+    }
+
+    // 添加员工
     function addEmployee() {
       const name = document.getElementById("newName").value.trim();
-      if (!name || employees.includes(name)) return;
+      if (!name) {
+        alert("请输入员工姓名");
+        return;
+      }
+      
+      if (employees.includes(name)) {
+        alert("该员工已存在");
+        return;
+      }
+      
       employees.push(name);
       records[name] = [];
       updateEmployeeList();
       document.getElementById("newName").value = "";
     }
 
+    // 更新员工列表
     function updateEmployeeList() {
       const list = document.getElementById("employee-list");
       list.innerHTML = "";
+      document.getElementById("employee-count").textContent = employees.length;
+      
       employees.forEach(name => {
         const div = document.createElement("div");
         div.className = "employee";
-        div.textContent = name;
+        if (name === selectedEmployee) {
+          div.classList.add("active");
+        }
+        
+        // 获取当前状态
+        const currentRecord = records[name].find(r => !r.end) || {};
+        let statusClass = '';
+        let statusText = currentRecord.status || '驻地';
+        
+        if (statusText.includes('出差')) statusClass = 'status-business';
+        else if (statusText.includes('请假')) statusClass = 'status-leave';
+        else statusClass = 'status-base';
+        
+        div.innerHTML = `
+          <div>
+            <span class="status-indicator ${statusClass}"></span>
+            ${name}
+          </div>
+          <span>${records[name].length}条</span>
+        `;
+        
         div.onclick = () => selectEmployee(name);
         list.appendChild(div);
       });
     }
 
-    let selectedEmployee = null;
+    // 选择员工
     function selectEmployee(name) {
       selectedEmployee = name;
-      document.getElementById("selected-employee-title").textContent = `【${name}】的出差记录`;
+      document.getElementById("selected-employee-title").querySelector("h3").textContent = `【${name}】的出差记录`;
       updateRecords();
-      if (currentMarker) map.remove(currentMarker);
+      updateEmployeeList();
+      
+      // 清除之前的标记
+      if (currentMarker) {
+        map.remove(currentMarker);
+        currentMarker = null;
+      }
+      
+      // 清除历史轨迹
+      if (historyPolyline) {
+        map.remove(historyPolyline);
+        historyPolyline = null;
+      }
+      
+      // 显示当前出差位置
       const current = records[name].find(r => !r.end);
-      if (current) {
+      if (current && current.location) {
         geocoder.getLocation(current.location, (status, result) => {
           if (status === "complete" && result.geocodes.length) {
             const pos = result.geocodes[0].location;
             currentMarker = new AMap.Marker({
               map: map,
               position: pos,
-              icon: new AMap.Icon({
-                image: "https://webapi.amap.com/theme/v1.3/markers/n/mark_b.png",
-                size: new AMap.Size(40, 40)
-              })
+              title: `${name} - ${current.status}`,
+              content: `<div style="background:#e74c3c;color:white;padding:2px 6px;border-radius:12px;">${name}</div>`,
+              offset: new AMap.Pixel(-15, -15)
             });
             map.setCenter(pos);
             map.setZoom(10);
           }
         });
       }
+      
+      // 显示历史轨迹
+      if (showHistoryTrack) {
+        showEmployeeHistoryTrack(name);
+      }
     }
 
+    // 更新记录显示
     function updateRecords() {
       const box = document.getElementById("records");
       box.innerHTML = "";
-      if (!selectedEmployee) return;
+      
+      if (!selectedEmployee) {
+        box.innerHTML = "<p>请选择员工查看记录</p>";
+        return;
+      }
+      
       const recs = records[selectedEmployee] || [];
+      if (recs.length === 0) {
+        box.innerHTML = "<p>暂无出差记录</p>";
+        return;
+      }
+      
+      // 按开始日期排序
+      recs.sort((a, b) => new Date(b.start) - new Date(a.start));
+      
       recs.forEach((r, i) => {
         const div = document.createElement("div");
-        div.textContent = `${r.start} ~ ${r.end || "现在"} - ${r.location}（${r.status}）`;
+        div.className = "record-item";
+        
+        if (!r.end) {
+          div.classList.add("current");
+        } else if (r.status.includes('请假')) {
+          div.classList.add("leave");
+        }
+        
+        div.innerHTML = `
+          <div class="record-details">
+            <div><strong>${r.start} ~ ${r.end || "现在"}</strong></div>
+            <div>${r.location}</div>
+            <div>状态: ${r.status}</div>
+          </div>
+          <div class="record-actions">
+            <button onclick="editRecord(${i})">编辑</button>
+            <button onclick="deleteRecord(${i})" class="secondary">删除</button>
+          </div>
+        `;
         box.appendChild(div);
       });
     }
 
+    // 添加记录
     function addRecord() {
-      if (!selectedEmployee) return alert("请先选择员工");
+      if (!selectedEmployee) {
+        alert("请先选择员工");
+        return;
+      }
+      
       const start = document.getElementById("startDate").value;
       const end = document.getElementById("endDate").value;
-      const status = document.getElementById("status").value;
-      const location = document.getElementById("location").value;
-      if (!start || !location) return alert("请填写完整");
+      const status = document.getElementById("status").value.trim();
+      const location = document.getElementById("location").value.trim();
+      
+      if (!start || !status || !location) {
+        alert("请填写完整信息");
+        return;
+      }
+      
+      // 结束日期不能早于开始日期
+      if (end && new Date(end) < new Date(start)) {
+        alert("结束日期不能早于开始日期");
+        return;
+      }
+      
       records[selectedEmployee].push({ start, end, status, location });
       updateRecords();
+      selectEmployee(selectedEmployee); // 刷新地图标记
+      clearForm();
     }
 
+    // 编辑记录
+    function editRecord(index) {
+      if (!selectedEmployee || index < 0 || index >= records[selectedEmployee].length) return;
+      
+      const record = records[selectedEmployee][index];
+      document.getElementById("startDate").value = record.start;
+      document.getElementById("endDate").value = record.end || '';
+      document.getElementById("status").value = record.status;
+      document.getElementById("location").value = record.location;
+      
+      // 删除原记录
+      deleteRecord(index);
+    }
+
+    // 删除记录
+    function deleteRecord(index) {
+      if (!selectedEmployee || index < 0 || index >= records[selectedEmployee].length) return;
+      
+      if (confirm("确定要删除这条记录吗？")) {
+        records[selectedEmployee].splice(index, 1);
+        updateRecords();
+        selectEmployee(selectedEmployee); // 刷新地图标记
+      }
+    }
+
+    // 清空表单
+    function clearForm() {
+      document.getElementById("startDate").value = "";
+      document.getElementById("endDate").value = "";
+      document.getElementById("status").value = "";
+      document.getElementById("location").value = "";
+    }
+
+    // 标记所有出差中员工
+    function markCurrentBusinessEmployees() {
+      // 清除之前的标记
+      markers.forEach(marker => map.remove(marker));
+      markers.length = 0;
+      
+      employees.forEach(name => {
+        const current = records[name].find(r => !r.end && r.status.includes('出差'));
+        if (current && current.location) {
+          geocoder.getLocation(current.location, (status, result) => {
+            if (status === "complete" && result.geocodes.length) {
+              const pos = result.geocodes[0].location;
+              const marker = new AMap.Marker({
+                map: map,
+                position: pos,
+                title: `${name} - ${current.status}`,
+                content: `<div style="background:#e74c3c;color:white;padding:2px 6px;border-radius:12px;">${name}</div>`,
+                offset: new AMap.Pixel(-15, -15)
+              });
+              markers.push(marker);
+            }
+          });
+        }
+      });
+    }
+
+    // 导出CSV
+    function exportCSV() {
+      if (employees.length === 0) {
+        alert("没有数据可导出");
+        return;
+      }
+      
+      let csvContent = "员工姓名,开始日期,结束日期,状态,地点\n";
+      
+      employees.forEach(name => {
+        records[name].forEach(record => {
+          csvContent += `${name},${record.start},${record.end || ""},${record.status},${record.location}\n`;
+        });
+      });
+      
+      const blob = new Blob(["\uFEFF" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "员工出差记录.csv");
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    // 导入JSON
+    function importJSON(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          
+          // 清除现有数据
+          employees.length = 0;
+          for (let key in records) {
+            delete records[key];
+          }
+          
+          // 导入新数据
+          data.employees.forEach(name => employees.push(name));
+          Object.assign(records, data.records);
+          
+          updateEmployeeList();
+          markCurrentBusinessEmployees();
+          alert(`成功导入数据，共${employees.length}名员工`);
+        } catch (error) {
+          alert("导入失败，文件格式不正确");
+          console.error(error);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    // 切换历史轨迹显示
+    function toggleHistoryTrack() {
+      showHistoryTrack = !showHistoryTrack;
+      document.getElementById("track-toggle").textContent = 
+        showHistoryTrack ? "隐藏历史轨迹" : "显示历史轨迹";
+      
+      if (showHistoryTrack && selectedEmployee) {
+        showEmployeeHistoryTrack(selectedEmployee);
+      } else if (historyPolyline) {
+        map.remove(historyPolyline);
+        historyPolyline = null;
+      }
+    }
+
+    // 显示员工历史轨迹
+    function showEmployeeHistoryTrack(employee) {
+      if (historyPolyline) {
+        map.remove(historyPolyline);
+        historyPolyline = null;
+      }
+      
+      const recs = records[employee] || [];
+      if (recs.length === 0) return;
+      
+      // 获取所有地点坐标
+      const locations = recs.map(r => r.location);
+      const promises = locations.map(location => {
+        return new Promise(resolve => {
+          geocoder.getLocation(location, (status, result) => {
+            if (status === "complete" && result.geocodes.length) {
+              resolve(result.geocodes[0].location);
+            } else {
+              resolve(null);
+            }
+          });
+        });
+      });
+      
+      Promise.all(promises).then(coords => {
+        const validCoords = coords.filter(coord => coord !== null);
+        if (validCoords.length < 2) return;
+        
+        historyPolyline = new AMap.Polyline({
+          map: map,
+          path: validCoords,
+          strokeColor: "#3498db",
+          strokeWeight: 4,
+          strokeStyle: "solid"
+        });
+        
+        // 调整视图以显示整个轨迹
+        map.setFitView([historyPolyline]);
+      });
+    }
+
+    // 重置地图视图
+    function resetMapView() {
+      map.setZoomAndCenter(5, [104.06, 35.86]);
+    }
+
+    // 页面加载时初始化
     window.onload = initMap;
   </script>
 </body>
