@@ -12,7 +12,7 @@
       height: 100vh;
     }
     #sidebar {
-      width: 200px;
+      width: 260px;
       background-color: #f0f0f0;
       padding: 10px;
       overflow-y: auto;
@@ -24,7 +24,6 @@
       flex-direction: column;
     }
     #map {
-      flex: 2;
       height: 70%;
     }
     #record-panel {
@@ -57,30 +56,33 @@
   <div id="sidebar">
     <h3>员工列表</h3>
     <div id="employee-list"></div>
-    <hr />
+
     <h4>添加员工</h4>
     <input type="text" id="newName" placeholder="姓名" />
     <button onclick="addEmployee()">添加</button>
+
+    <hr />
+    <h4>添加出差记录</h4>
+    <label>开始日期</label>
+    <input type="date" id="startDate" />
+    <label>结束日期（可选）</label>
+    <input type="date" id="endDate" />
+    <label>状态</label>
+    <select id="status">
+      <option>出差中</option>
+      <option>驻地</option>
+      <option>请假</option>
+    </select>
+    <label>地点</label>
+    <input type="text" id="location" placeholder="点击地图选择地点" readonly />
+    <button onclick="addRecord()">添加记录</button>
   </div>
+
   <div id="main">
     <div id="map"></div>
     <div id="record-panel">
       <h3 id="selected-employee-title">出差记录</h3>
       <div id="records"></div>
-      <h4>添加出差记录</h4>
-      <label>开始日期</label>
-      <input type="date" id="startDate" />
-      <label>结束日期（可选）</label>
-      <input type="date" id="endDate" />
-      <label>状态</label>
-      <select id="status">
-        <option>出差中</option>
-        <option>驻地</option>
-        <option>请假</option>
-      </select>
-      <label>地点</label>
-      <input type="text" id="location" placeholder="点击地图选择地点" readonly />
-      <button onclick="addRecord()">添加记录</button>
     </div>
   </div>
 
